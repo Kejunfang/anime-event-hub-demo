@@ -1,0 +1,16 @@
+# Local AI / Codex workflow files
+AGENTS.md
+agent.md
+.teams/
+.questions/
+.codex/
+*.agent.md
+
+# Local secrets and dependencies
+.env
+.env.*
+node_modules/
+
+# Operating system files
+.DS_Store
+Thumbs.db

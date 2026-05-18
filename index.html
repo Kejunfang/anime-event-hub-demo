@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taylor's Anime Event Hub</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav-shell" aria-label="Main navigation">
+      <a class="brand" href="#home" data-view-link="home" aria-label="Taylor's Anime Event Hub home">
+        <span class="brand-mark">TA</span>
+        <span>
+          <strong>Taylor's Anime Event Hub</strong>
+          <small>Student Event Portal</small>
+        </span>
+      </a>
+
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="nav-links" id="mainNav">
+        <a href="#home" data-view-link="home">Home</a>
+        <a href="#events" data-view-link="events">Events</a>
+        <a href="#create" data-view-link="create">Create Event</a>
+        <a href="#my-events" data-view-link="my-events">My Events</a>
+        <a href="#auth" data-view-link="auth" data-auth-link>Login/Register</a>
+        <a href="#profile" data-view-link="profile">Profile</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="view active" id="home" data-view="home">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Taylor's University student events</p>
+          <h1>Taylor's Anime Event Hub</h1>
+          <p class="hero-text">
+            Discover screenings, cosplay meetups, game tournaments, workshops, and culture nights
+            created for Taylor's students who love anime and Japanese pop culture.
+          </p>
+          <div class="hero-actions">
+            <button class="primary-btn" type="button" data-view-link="events">Browse Events</button>
+            <button class="ghost-btn" type="button" data-view-link="create">Create Event</button>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="moon-card">
+            <span class="art-label">Campus Night</span>
+            <div class="sun-disc"></div>
+            <div class="skyline"></div>
+          </div>
+        </div>
+      </div>
+
+      <section class="content-band">
+        <div class="section-heading">
+          <p class="eyebrow">Featured this month</p>
+          <h2>Featured Anime Events</h2>
+        </div>
+        <div class="event-grid" id="featuredEvents"></div>
+      </section>
+    </section>
+
+    <section class="view" id="events" data-view="events">
+      <div class="page-heading">
+        <p class="eyebrow">Explore the hub</p>
+        <h1>Anime Events</h1>
+        <p>Filter by category, open event details, and join activities using your demo student account.</p>
+      </div>
+
+      <div class="filter-bar" id="categoryFilters" aria-label="Event category filters"></div>
+      <div class="event-grid" id="eventsGrid"></div>
+    </section>
+
+    <section class="view" id="create" data-view="create">
+      <div class="split-layout">
+        <div>
+          <p class="eyebrow">Student organizers</p>
+          <h1>Create Event</h1>
+          <p class="muted">
+            Logged-in users can add demo events. New events are stored in localStorage and appear
+            immediately in the event list.
+          </p>
+          <div class="info-panel">
+            <strong>Future backend upgrade</strong>
+            <p>Replace this local form handler with PHP endpoints and MySQL event records later.</p>
+          </div>
+        </div>
+
+        <form class="form-panel" id="createEventForm" novalidate>
+          <label>
+            Event Title
+            <input type="text" name="title" placeholder="Anime Music Night Encore">
+          </label>
+          <label>
+            Category
+            <select name="category" id="createCategory"></select>
+          </label>
+          <div class="form-row">
+            <label>
+              Date
+              <input type="date" name="date">
+            </label>
+            <label>
+              Time
+              <input type="time" name="time">
+            </label>
+          </div>
+          <label>
+            Location
+            <input type="text" name="location" placeholder="Taylor's Lakeside Campus">
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="5" placeholder="Describe the event activities, schedule, and who should join."></textarea>
+          </label>
+          <button class="primary-btn full-width" type="submit">Create Event</button>
+          <p class="form-message" id="createMessage" role="status"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="view" id="my-events" data-view="my-events">
+      <div class="page-heading">
+        <p class="eyebrow">Your activity</p>
+        <h1>My Events</h1>
+        <p>View anime events you joined and events you created as a student organizer.</p>
+      </div>
+
+      <div class="two-column">
+        <section>
+          <div class="section-heading compact">
+            <h2>Joined Events</h2>
+          </div>
+          <div class="event-grid single-column" id="joinedEvents"></div>
+        </section>
+
+        <section>
+          <div class="section-heading compact">
+            <h2>Created Events</h2>
+          </div>
+          <div class="event-grid single-column" id="createdEvents"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="auth" data-view="auth">
+      <div class="auth-layout">
+        <section class="form-panel">
+          <p class="eyebrow">New student</p>
+          <h1>Register</h1>
+          <form id="registerForm" novalidate>
+            <label>
+              Full Name
+              <input type="text" name="fullName" placeholder="Alya Tan">
+            </label>
+            <label>
+              Student ID
+              <input type="text" name="studentId" placeholder="0345678">
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" placeholder="alya@example.com">
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" placeholder="Create a demo password">
+            </label>
+            <button class="primary-btn full-width" type="submit">Create Demo Account</button>
+            <p class="form-message" id="registerMessage" role="status"></p>
+          </form>
+        </section>
+
+        <section class="form-panel contrast">
+          <p class="eyebrow">Returning student</p>
+          <h1>Login</h1>
+          <form id="loginForm" novalidate>
+            <label>
+              Email
+              <input type="email" name="email" placeholder="alya@example.com">
+            </label>
+            <label>
+              Password
+              <input type="password" name="password" placeholder="Your demo password">
+            </label>
+            <button class="dark-btn full-width" type="submit">Login</button>
+            <p class="form-message" id="loginMessage" role="status"></p>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="profile" data-view="profile">
+      <div class="profile-shell" id="profileContent"></div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="eventModal" aria-hidden="true">
+    <article class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" type="button" aria-label="Close event details">&times;</button>
+      <div id="modalContent"></div>
+    </article>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data/mockData.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,142 +1,156 @@
 # Taylor's Anime Event Hub
 
-Taylor's Anime Event Hub is a demo event management web application for Taylor's University students who want to discover, create, and join anime-related campus events.
+Taylor's Anime Event Hub is a static demo web application for Taylor's University anime-related campus events and community posts.
 
-## Purpose
+The demo now supports two roles:
 
-This prototype supports a Web Application Programming assignment demo. It shows the main user flows before a real PHP backend and database are connected.
+- Normal student user
+- Admin
+
+It uses `localStorage` as a temporary mock database. No backend server, PHP runtime, or MySQL server is required for this demo stage.
+
+## Test Accounts
+
+Use these accounts on the `Log In / Sign Up` page:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Normal user | `student@example.com` | `student123` |
+| Admin | `admin@example.com` | `admin123` |
+
+There are also quick-fill buttons on the login panel for both demo accounts.
 
 ## Features
 
-- Home page with platform introduction and featured events
-- Register and login using temporary browser data
-- Profile view for the logged-in demo user
-- Event listing with anime-related dummy data
-- Category filtering
-- Event details modal
-- Join event flow with duplicate-join prevention
-- Create event form for logged-in users
-- My Events page for joined and created events
-- Responsive layout for desktop and mobile presentation
+### Normal User
 
-## Technologies Used
+- Home page with featured events
+- Event list with category filters
+- Event detail modal
+- Register for available events
+- My Event page for joined events
+- Cancel event registration
+- Profile page with user details, my posts, and liked posts
+- View posts
+- Create posts
+- Like, comment, and share posts
+- Delete own posts
+- View other user profiles
 
-- HTML
-- CSS
-- JavaScript
-- localStorage as a temporary mock database
+### Admin
 
-No backend server is required for this demo stage.
+- Event page
+- Create event
+- Edit event
+- Delete event
+- View users registered for each event
+- View posts
+- Create posts
+- Like, comment, and share posts
+- Delete any post
+- Profile page with admin details, my posts, and liked posts
+- View other user profiles
 
 ## How To Run The Demo
 
 Open this file in a browser:
 
 ```text
-anime-event-hub/index.html
+index.html
 ```
 
-The demo works by directly opening `index.html`; no PHP runtime, database server, or package installation is needed.
+The demo can be run directly from the file system.
 
 ## Temporary Database
 
-The demo stores records in `localStorage` using these keys:
+The app stores mock records in browser `localStorage` with these keys:
 
 ```text
 taeh_users
 taeh_currentUser
 taeh_events
-taeh_joinedEvents
+taeh_registrations
+taeh_posts
+taeh_postLikes
+taeh_postComments
+taeh_postShares
 ```
 
-Default events are defined in:
+Default data is defined in:
 
 ```text
 data/mockData.js
 ```
 
-When the app first opens, it copies the default events into localStorage. User registration, login state, created events, and joined events are then saved in the browser.
+To reset the demo data, clear localStorage for this page and refresh the browser.
 
-To reset demo data, clear the browser localStorage for this page and refresh.
+## Mock Table Design
 
-## Demo Data
+### users
 
-The prototype includes 8 default anime-related events:
+| Field | Purpose |
+| --- | --- |
+| `user_id` | User ID |
+| `username` | Username |
+| `email` | Email |
+| `password` | Demo password; real backend should hash this |
+| `role` | `user` or `admin` |
+| `anime_interest` | User's anime interests |
+| `created_at` | Registration time |
 
-1. Anime Movie Night: Your Name Screening
-2. Cosplay Meetup 2026
-3. Manga Drawing Workshop
-4. Anime Voice Acting Challenge
-5. Japanese Culture Mini Festival
-6. Anime Music Night
-7. Genshin Impact Campus Tournament
-8. Anime Club Ice Breaking Day
+### events
 
-## Future PHP And MySQL Upgrade Plan
+| Field | Purpose |
+| --- | --- |
+| `event_id` | Event ID |
+| `title` | Event title |
+| `category` | Event category |
+| `description` | Event description |
+| `event_date` | Event date |
+| `event_time` | Event time |
+| `location` | Event location |
+| `capacity` | Maximum participants |
+| `image_url` | Optional event image |
+| `status` | `Upcoming`, `Full`, `Closed`, or demo-only `Deleted` |
+| `created_by` | Admin user ID |
+| `created_at` | Created time |
 
-Replace localStorage with server-side PHP scripts and a real database.
+### registrations
 
-Suggested database tables:
+| Field | Purpose |
+| --- | --- |
+| `registration_id` | Registration ID |
+| `user_id` | Registered user ID |
+| `event_id` | Registered event ID |
+| `registration_date` | Registration time |
+| `status` | `joined` or `cancelled` |
 
-```sql
-users (
-  id,
-  full_name,
-  student_id,
-  email,
-  password_hash,
-  created_at
-)
+### posts
 
-events (
-  id,
-  title,
-  category,
-  event_date,
-  event_time,
-  location,
-  description,
-  created_by,
-  created_at
-)
+| Field | Purpose |
+| --- | --- |
+| `post_id` | Post ID |
+| `user_id` | Author user ID |
+| `title` | Post title |
+| `content` | Post content |
+| `image_url` | Optional post image |
+| `created_at` | Created time |
+| `updated_at` | Updated time |
+| `status` | `active` or `deleted` |
 
-event_registrations (
-  id,
-  user_id,
-  event_id,
-  joined_at
-)
-```
+### postLikes, postComments, postShares
 
-Suggested PHP files:
-
-```text
-db_connect.php
-register.php
-login.php
-logout.php
-create_event.php
-join_event.php
-get_events.php
-my_events.php
-```
-
-Backend upgrade notes:
-
-- `db_connect.php` should hold the MySQL connection.
-- `register.php` should validate user input and store hashed passwords.
-- `login.php` should verify credentials and create a PHP session.
-- `create_event.php` should insert records into the `events` table.
-- `join_event.php` should insert records into `event_registrations` and prevent duplicates.
-- Event pages should read data from MySQL instead of `localStorage`.
+These mock tables store post likes, comments, and shares using the field names from the project database design.
 
 ## Presentation Checklist
 
-- Register a new demo account
-- Login with the new account
-- Browse the event grid
-- Filter events by category
-- Open an event details modal
-- Join an event
-- Create a new event
-- View joined and created events in My Events
+- Login as normal user with `student@example.com / student123`
+- Browse events and open event details
+- Join an event and confirm it appears in My Event
+- Cancel a registration
+- Create a post as normal user
+- Like, comment, share, and delete own post
+- Login as admin with `admin@example.com / admin123`
+- Create, edit, and delete an event
+- Open an event and view registered users
+- Delete another user's post as admin

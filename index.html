@@ -23,14 +23,7 @@
         <span></span>
       </button>
 
-      <div class="nav-links" id="mainNav">
-        <a href="#home" data-view-link="home">Home</a>
-        <a href="#events" data-view-link="events">Events</a>
-        <a href="#create" data-view-link="create">Create Event</a>
-        <a href="#my-events" data-view-link="my-events">My Events</a>
-        <a href="#auth" data-view-link="auth" data-auth-link>Login/Register</a>
-        <a href="#profile" data-view-link="profile">Profile</a>
-      </div>
+      <div class="nav-links" id="mainNav"></div>
     </nav>
   </header>
 
@@ -41,12 +34,12 @@
           <p class="eyebrow">Taylor's University student events</p>
           <h1>Taylor's Anime Event Hub</h1>
           <p class="hero-text">
-            Discover screenings, cosplay meetups, game tournaments, workshops, and culture nights
-            created for Taylor's students who love anime and Japanese pop culture.
+            Discover anime screenings, workshops, club meetups, and student community posts in one
+            role-based demo portal for normal users and admins.
           </p>
           <div class="hero-actions">
             <button class="primary-btn" type="button" data-view-link="events">Browse Events</button>
-            <button class="ghost-btn" type="button" data-view-link="create">Create Event</button>
+            <button class="ghost-btn" type="button" data-view-link="posts">View Posts</button>
           </div>
         </div>
         <div class="hero-art" aria-hidden="true">
@@ -71,45 +64,54 @@
       <div class="page-heading">
         <p class="eyebrow">Explore the hub</p>
         <h1>Anime Events</h1>
-        <p>Filter by category, open event details, and join activities using your demo student account.</p>
+        <p>Filter by category, open event details, and register for available activities.</p>
       </div>
-
       <div class="filter-bar" id="categoryFilters" aria-label="Event category filters"></div>
       <div class="event-grid" id="eventsGrid"></div>
     </section>
 
-    <section class="view" id="create" data-view="create">
+    <section class="view" id="admin-events" data-view="admin-events">
       <div class="split-layout">
         <div>
-          <p class="eyebrow">Student organizers</p>
+          <p class="eyebrow">Admin tools</p>
           <h1>Create Event</h1>
-          <p class="muted">
-            Logged-in users can add demo events. New events are stored in localStorage and appear
-            immediately in the event list.
-          </p>
-          <div class="info-panel">
-            <strong>Future backend upgrade</strong>
-            <p>Replace this local form handler with PHP endpoints and MySQL event records later.</p>
-          </div>
+          <p class="muted">Use the form to create events. Existing events below can be edited, deleted, or checked for registered users.</p>
+          <div class="admin-list" id="adminEventList"></div>
         </div>
 
-        <form class="form-panel" id="createEventForm" novalidate>
+        <form class="form-panel" id="eventForm" novalidate>
+          <p class="eyebrow" id="eventFormMode">Create Event</p>
+          <input type="hidden" name="event_id">
           <label>
             Event Title
             <input type="text" name="title" placeholder="Anime Music Night Encore">
           </label>
           <label>
             Category
-            <select name="category" id="createCategory"></select>
+            <select name="category" id="eventCategory"></select>
           </label>
           <div class="form-row">
             <label>
               Date
-              <input type="date" name="date">
+              <input type="date" name="event_date">
             </label>
             <label>
               Time
-              <input type="time" name="time">
+              <input type="time" name="event_time">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              Capacity
+              <input type="number" name="capacity" min="1" placeholder="50">
+            </label>
+            <label>
+              Status
+              <select name="status">
+                <option value="Upcoming">Upcoming</option>
+                <option value="Full">Full</option>
+                <option value="Closed">Closed</option>
+              </select>
             </label>
           </div>
           <label>
@@ -117,11 +119,18 @@
             <input type="text" name="location" placeholder="Taylor's Lakeside Campus">
           </label>
           <label>
+            Image URL
+            <input type="url" name="image_url" placeholder="https://example.com/event.jpg">
+          </label>
+          <label>
             Description
             <textarea name="description" rows="5" placeholder="Describe the event activities, schedule, and who should join."></textarea>
           </label>
-          <button class="primary-btn full-width" type="submit">Create Event</button>
-          <p class="form-message" id="createMessage" role="status"></p>
+          <div class="form-actions">
+            <button class="primary-btn" type="submit">Save Event</button>
+            <button class="ghost-btn" type="button" id="resetEventForm">Clear</button>
+          </div>
+          <p class="form-message" id="eventMessage" role="status"></p>
         </form>
       </div>
     </section>
@@ -129,24 +138,38 @@
     <section class="view" id="my-events" data-view="my-events">
       <div class="page-heading">
         <p class="eyebrow">Your activity</p>
-        <h1>My Events</h1>
-        <p>View anime events you joined and events you created as a student organizer.</p>
+        <h1>My Event</h1>
+        <p>View events you registered for and cancel registrations you no longer need.</p>
       </div>
+      <div class="event-grid" id="myEventsGrid"></div>
+    </section>
 
-      <div class="two-column">
-        <section>
-          <div class="section-heading compact">
-            <h2>Joined Events</h2>
-          </div>
-          <div class="event-grid single-column" id="joinedEvents"></div>
-        </section>
+    <section class="view" id="posts" data-view="posts">
+      <div class="split-layout post-layout">
+        <div>
+          <p class="eyebrow">Community</p>
+          <h1>Anime Posts</h1>
+          <p class="muted">View posts, create posts, like, comment, share, delete posts, and open user profiles.</p>
+          <div class="post-feed" id="postFeed"></div>
+        </div>
 
-        <section>
-          <div class="section-heading compact">
-            <h2>Created Events</h2>
-          </div>
-          <div class="event-grid single-column" id="createdEvents"></div>
-        </section>
+        <form class="form-panel" id="postForm" novalidate>
+          <p class="eyebrow">Create Post</p>
+          <label>
+            Post Title
+            <input type="text" name="title" maxlength="150" placeholder="Best anime event idea?">
+          </label>
+          <label>
+            Content
+            <textarea name="content" rows="5" placeholder="Share something with the anime community."></textarea>
+          </label>
+          <label>
+            Image URL
+            <input type="url" name="image_url" placeholder="Optional image path">
+          </label>
+          <button class="primary-btn full-width" type="submit">Create Post</button>
+          <p class="form-message" id="postMessage" role="status"></p>
+        </form>
       </div>
     </section>
 
@@ -154,36 +177,40 @@
       <div class="auth-layout">
         <section class="form-panel">
           <p class="eyebrow">New student</p>
-          <h1>Register</h1>
+          <h1>Sign Up</h1>
           <form id="registerForm" novalidate>
             <label>
-              Full Name
-              <input type="text" name="fullName" placeholder="Alya Tan">
-            </label>
-            <label>
-              Student ID
-              <input type="text" name="studentId" placeholder="0345678">
+              Username
+              <input type="text" name="username" placeholder="Alya Tan">
             </label>
             <label>
               Email
               <input type="email" name="email" placeholder="alya@example.com">
+            </label>
+            <label>
+              Anime Interest
+              <input type="text" name="anime_interest" placeholder="Slice of life, cosplay, J-pop">
             </label>
             <label>
               Password
               <input type="password" name="password" placeholder="Create a demo password">
             </label>
-            <button class="primary-btn full-width" type="submit">Create Demo Account</button>
+            <button class="primary-btn full-width" type="submit">Create User Account</button>
             <p class="form-message" id="registerMessage" role="status"></p>
           </form>
         </section>
 
         <section class="form-panel contrast">
-          <p class="eyebrow">Returning student</p>
-          <h1>Login</h1>
+          <p class="eyebrow">Demo login</p>
+          <h1>Log In</h1>
+          <div class="demo-accounts">
+            <button class="ghost-btn" type="button" data-fill-login="user">Use User</button>
+            <button class="ghost-btn" type="button" data-fill-login="admin">Use Admin</button>
+          </div>
           <form id="loginForm" novalidate>
             <label>
               Email
-              <input type="email" name="email" placeholder="alya@example.com">
+              <input type="email" name="email" placeholder="student@example.com">
             </label>
             <label>
               Password
@@ -205,6 +232,13 @@
     <article class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <button class="modal-close" type="button" aria-label="Close event details">&times;</button>
       <div id="modalContent"></div>
+    </article>
+  </div>
+
+  <div class="modal-backdrop" id="userModal" aria-hidden="true">
+    <article class="modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <button class="modal-close" type="button" aria-label="Close user profile" data-close-user-modal>&times;</button>
+      <div id="userModalContent"></div>
     </article>
   </div>
 

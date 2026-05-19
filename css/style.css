@@ -217,7 +217,8 @@ main {
 .primary-btn,
 .secondary-btn,
 .ghost-btn,
-.dark-btn {
+.dark-btn,
+.danger-btn {
   min-height: 44px;
   border: 0;
   border-radius: var(--radius);
@@ -245,10 +246,16 @@ main {
   background: white;
 }
 
+.danger-btn {
+  color: white;
+  background: #b42318;
+}
+
 .primary-btn:hover,
 .secondary-btn:hover,
 .ghost-btn:hover,
-.dark-btn:hover {
+.dark-btn:hover,
+.danger-btn:hover {
   transform: translateY(-2px);
 }
 
@@ -375,6 +382,8 @@ main {
   background:
     linear-gradient(135deg, rgba(255, 111, 145, 0.78), rgba(255, 209, 102, 0.88)),
     repeating-linear-gradient(45deg, transparent 0 10px, rgba(255, 255, 255, 0.28) 10px 12px);
+  background-position: center;
+  background-size: cover;
 }
 
 .event-art span {
@@ -539,6 +548,12 @@ dd {
   background: rgba(255, 255, 255, 0.95);
 }
 
+.form-panel.contrast .ghost-btn {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 form {
   display: grid;
   gap: 14px;
@@ -579,6 +594,20 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.form-actions,
+.demo-accounts,
+.row-actions,
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form-actions .primary-btn,
+.form-actions .ghost-btn {
+  flex: 1;
 }
 
 .form-message {
@@ -630,6 +659,142 @@ textarea {
   margin-top: 5px;
   overflow-wrap: anywhere;
   font-size: 1.05rem;
+}
+
+.admin-list,
+.post-feed,
+.profile-section {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-event-row,
+.post-card,
+.registered-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.admin-event-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.admin-event-row strong,
+.admin-event-row span,
+.admin-event-row small {
+  display: block;
+}
+
+.admin-event-row span,
+.admin-event-row small,
+.post-topline,
+.comment-list p {
+  color: var(--muted);
+}
+
+.admin-event-row small {
+  margin-top: 7px;
+  line-height: 1.5;
+}
+
+.post-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.48fr);
+}
+
+.post-card {
+  padding: 18px;
+}
+
+.post-card h3 {
+  margin: 10px 0 8px;
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.post-card p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.post-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.text-btn {
+  border: 0;
+  padding: 0;
+  color: var(--violet);
+  background: transparent;
+  font-weight: 900;
+}
+
+.post-image {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+
+.secondary-btn.active {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--mint);
+}
+
+.comment-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.comment-list p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.inline-form .dark-btn {
+  min-height: 46px;
+  box-shadow: none;
+}
+
+.compact-feed .post-card {
+  box-shadow: none;
+}
+
+.profile-section {
+  margin-top: 24px;
+}
+
+.registered-panel {
+  padding: 14px;
+  margin: 14px 0;
+}
+
+.registered-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
 }
 
 .empty-state {
@@ -766,6 +931,11 @@ textarea {
   .event-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-event-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
@@ -800,5 +970,9 @@ textarea {
   .profile-card,
   .modal {
     padding: 20px;
+  }
+
+  .inline-form {
+    grid-template-columns: 1fr;
   }
 }

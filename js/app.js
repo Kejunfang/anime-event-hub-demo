@@ -1,9 +1,16 @@
 const STORAGE_KEYS = {
+  schemaVersion: "taeh_schemaVersion",
   users: "taeh_users",
   currentUser: "taeh_currentUser",
   events: "taeh_events",
-  joinedEvents: "taeh_joinedEvents"
+  registrations: "taeh_registrations",
+  posts: "taeh_posts",
+  postLikes: "taeh_postLikes",
+  postComments: "taeh_postComments",
+  postShares: "taeh_postShares"
 };
+
+const SCHEMA_VERSION = "2";
 
 const state = {
   currentView: "home",
@@ -11,8 +18,8 @@ const state = {
   activeEventId: null
 };
 
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const qs = (selector) => document.querySelector(selector);
+const qsa = (selector) => Array.from(document.querySelectorAll(selector));
 
 function readStorage(key, fallback) {
   const value = localStorage.getItem(key);
@@ -31,17 +38,29 @@ function writeStorage(key, value) {
 }
 
 function initializeStorage() {
-  if (!localStorage.getItem(STORAGE_KEYS.users)) {
-    writeStorage(STORAGE_KEYS.users, []);
+  const storedVersion = localStorage.getItem(STORAGE_KEYS.schemaVersion);
+  if (storedVersion !== SCHEMA_VERSION) {
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
+    localStorage.removeItem("taeh_joinedEvents");
   }
 
-  if (!localStorage.getItem(STORAGE_KEYS.joinedEvents)) {
-    writeStorage(STORAGE_KEYS.joinedEvents, []);
-  }
+  const seeds = [
+    [STORAGE_KEYS.users, window.TAEH_DEFAULT_USERS || []],
+    [STORAGE_KEYS.events, window.TAEH_DEFAULT_EVENTS || []],
+    [STORAGE_KEYS.registrations, window.TAEH_DEFAULT_REGISTRATIONS || []],
+    [STORAGE_KEYS.posts, window.TAEH_DEFAULT_POSTS || []],
+    [STORAGE_KEYS.postLikes, window.TAEH_DEFAULT_POST_LIKES || []],
+    [STORAGE_KEYS.postComments, window.TAEH_DEFAULT_POST_COMMENTS || []],
+    [STORAGE_KEYS.postShares, window.TAEH_DEFAULT_POST_SHARES || []]
+  ];
 
-  if (!localStorage.getItem(STORAGE_KEYS.events)) {
-    writeStorage(STORAGE_KEYS.events, window.TAEH_DEFAULT_EVENTS || []);
-  }
+  seeds.forEach(([key, fallback]) => {
+    if (storedVersion !== SCHEMA_VERSION || !localStorage.getItem(key)) {
+      writeStorage(key, fallback);
+    }
+  });
+
+  localStorage.setItem(STORAGE_KEYS.schemaVersion, SCHEMA_VERSION);
 }
 
 function getUsers() {
@@ -52,12 +71,32 @@ function getEvents() {
   return readStorage(STORAGE_KEYS.events, []);
 }
 
-function getJoinedEvents() {
-  return readStorage(STORAGE_KEYS.joinedEvents, []);
+function getRegistrations() {
+  return readStorage(STORAGE_KEYS.registrations, []);
+}
+
+function getPosts() {
+  return readStorage(STORAGE_KEYS.posts, []);
+}
+
+function getPostLikes() {
+  return readStorage(STORAGE_KEYS.postLikes, []);
+}
+
+function getPostComments() {
+  return readStorage(STORAGE_KEYS.postComments, []);
+}
+
+function getPostShares() {
+  return readStorage(STORAGE_KEYS.postShares, []);
 }
 
 function getCurrentUser() {
   return readStorage(STORAGE_KEYS.currentUser, null);
+}
+
+function findUser(userId) {
+  return getUsers().find((user) => Number(user.user_id) === Number(userId));
 }
 
 function setCurrentUser(user) {
@@ -67,11 +106,18 @@ function setCurrentUser(user) {
   }
 
   writeStorage(STORAGE_KEYS.currentUser, {
-    id: user.id,
-    fullName: user.fullName,
-    studentId: user.studentId,
-    email: user.email
+    user_id: user.user_id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    anime_interest: user.anime_interest,
+    created_at: user.created_at
   });
+}
+
+function nextId(records, field) {
+  const maxId = records.reduce((max, record) => Math.max(max, Number(record[field]) || 0), 0);
+  return maxId + 1;
 }
 
 function formatDate(dateValue) {
@@ -89,101 +135,47 @@ function formatTime(timeValue) {
   }).format(new Date(`2026-01-01T${timeValue}`));
 }
 
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("en-MY", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function activeRegistrations(eventId) {
+  return getRegistrations().filter((item) => (
+    Number(item.event_id) === Number(eventId) && item.status === "joined"
+  ));
+}
+
 function countParticipants(eventId) {
-  const event = getEvents().find((item) => item.id === eventId);
-  const joinedCount = getJoinedEvents().filter((item) => item.eventId === eventId).length;
-  return (event?.baseParticipants || 0) + joinedCount;
+  return activeRegistrations(eventId).length;
+}
+
+function isAdmin() {
+  return getCurrentUser()?.role === "admin";
 }
 
 function showToast(message) {
-  const toast = $("#toast");
+  const toast = qs("#toast");
   toast.textContent = message;
   toast.classList.add("show");
   window.setTimeout(() => toast.classList.remove("show"), 2600);
 }
 
-function setMessage(elementId, message, type = "neutral") {
-  const element = $(elementId);
+function setMessage(selector, message, type = "neutral") {
+  const element = qs(selector);
+  if (!element) return;
   element.textContent = message;
   element.dataset.type = type;
 }
 
 function clearMessages() {
-  ["#registerMessage", "#loginMessage", "#createMessage"].forEach((selector) => {
-    const element = $(selector);
-    if (element) {
-      element.textContent = "";
-      element.dataset.type = "neutral";
-    }
+  ["#registerMessage", "#loginMessage", "#eventMessage", "#postMessage"].forEach((selector) => {
+    setMessage(selector, "");
   });
-}
-
-function renderCategoryOptions() {
-  const createCategory = $("#createCategory");
-  createCategory.innerHTML = window.TAEH_CATEGORIES
-    .map((category) => `<option value="${category}">${category}</option>`)
-    .join("");
-
-  const filters = ["All", ...window.TAEH_CATEGORIES];
-  $("#categoryFilters").innerHTML = filters
-    .map((category) => `
-      <button class="filter-pill ${category === state.selectedCategory ? "active" : ""}" type="button" data-category="${category}">
-        ${category}
-      </button>
-    `)
-    .join("");
-}
-
-function eventCardTemplate(event, options = {}) {
-  const participants = countParticipants(event.id);
-  const compactClass = options.compact ? " compact-card" : "";
-
-  return `
-    <article class="event-card${compactClass}">
-      <div class="event-art ${event.category.toLowerCase().replace(/\s+/g, "-")}">
-        <span>${event.category}</span>
-      </div>
-      <div class="event-body">
-        <div class="event-meta">
-          <span class="category-tag">${event.category}</span>
-          <span>${participants} joined</span>
-        </div>
-        <h3>${event.title}</h3>
-        <p>${event.shortDescription || event.description}</p>
-        <dl class="event-facts">
-          <div>
-            <dt>Date</dt>
-            <dd>${formatDate(event.date)}</dd>
-          </div>
-          <div>
-            <dt>Time</dt>
-            <dd>${formatTime(event.time)}</dd>
-          </div>
-          <div>
-            <dt>Location</dt>
-            <dd>${event.location}</dd>
-          </div>
-        </dl>
-        <button class="secondary-btn" type="button" data-event-details="${event.id}">View Details</button>
-      </div>
-    </article>
-  `;
-}
-
-function renderEvents() {
-  const events = getEvents();
-  const filteredEvents = state.selectedCategory === "All"
-    ? events
-    : events.filter((event) => event.category === state.selectedCategory);
-
-  $("#eventsGrid").innerHTML = filteredEvents.length
-    ? filteredEvents.map((event) => eventCardTemplate(event)).join("")
-    : emptyStateTemplate("No events match this category yet.", "Try another category or create a new event.");
-
-  $("#featuredEvents").innerHTML = events
-    .slice(0, 3)
-    .map((event) => eventCardTemplate(event, { compact: true }))
-    .join("");
 }
 
 function emptyStateTemplate(title, detail) {
@@ -195,149 +187,396 @@ function emptyStateTemplate(title, detail) {
   `;
 }
 
+function renderNavigation() {
+  const currentUser = getCurrentUser();
+  const links = currentUser?.role === "admin"
+    ? [
+        ["events", "Events"],
+        ["admin-events", "Create Event"],
+        ["posts", "Posts"],
+        ["profile", "Profile"]
+      ]
+    : [
+        ["home", "Home"],
+        ["events", "Events"],
+        ["my-events", "My Event"],
+        ["posts", "Posts"],
+        ["profile", "Profile"]
+      ];
+
+  qs("#mainNav").innerHTML = [
+    ...links.map(([view, label]) => `<a href="#${view}" data-view-link="${view}">${label}</a>`),
+    currentUser ? "" : `<a href="#auth" data-view-link="auth" data-auth-link>Log In / Sign Up</a>`
+  ].join("");
+}
+
+function renderCategoryOptions() {
+  const eventCategory = qs("#eventCategory");
+  if (eventCategory) {
+    eventCategory.innerHTML = window.TAEH_CATEGORIES
+      .map((category) => `<option value="${category}">${category}</option>`)
+      .join("");
+  }
+
+  const filters = ["All", ...window.TAEH_CATEGORIES];
+  qs("#categoryFilters").innerHTML = filters
+    .map((category) => `
+      <button class="filter-pill ${category === state.selectedCategory ? "active" : ""}" type="button" data-category="${category}">
+        ${category}
+      </button>
+    `)
+    .join("");
+}
+
+function eventStatus(event) {
+  const participants = countParticipants(event.event_id);
+  if (event.status === "Closed") return "Closed";
+  if (participants >= Number(event.capacity)) return "Full";
+  return event.status;
+}
+
+function eventCardTemplate(event, options = {}) {
+  const participants = countParticipants(event.event_id);
+  const status = eventStatus(event);
+  const compactClass = options.compact ? " compact-card" : "";
+  const artClass = event.category.toLowerCase().replace(/\s+/g, "-");
+
+  return `
+    <article class="event-card${compactClass}">
+      <div class="event-art ${artClass}" ${event.image_url ? `style="background-image: linear-gradient(135deg, rgba(35,31,47,.22), rgba(255,111,145,.28)), url('${event.image_url}')"` : ""}>
+        <span>${event.category}</span>
+      </div>
+      <div class="event-body">
+        <div class="event-meta">
+          <span class="category-tag">${status}</span>
+          <span>${participants}/${event.capacity} joined</span>
+        </div>
+        <h3>${event.title}</h3>
+        <p>${event.description}</p>
+        <dl class="event-facts">
+          <div><dt>Date</dt><dd>${formatDate(event.event_date)}</dd></div>
+          <div><dt>Time</dt><dd>${formatTime(event.event_time)}</dd></div>
+          <div><dt>Location</dt><dd>${event.location}</dd></div>
+        </dl>
+        <button class="secondary-btn" type="button" data-event-details="${event.event_id}">View Details</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderEvents() {
+  const events = getEvents().filter((event) => event.status !== "Deleted");
+  const filteredEvents = state.selectedCategory === "All"
+    ? events
+    : events.filter((event) => event.category === state.selectedCategory);
+
+  qs("#eventsGrid").innerHTML = filteredEvents.length
+    ? filteredEvents.map((event) => eventCardTemplate(event)).join("")
+    : emptyStateTemplate("No events match this category yet.", "Try another category.");
+
+  qs("#featuredEvents").innerHTML = events
+    .slice(0, 3)
+    .map((event) => eventCardTemplate(event, { compact: true }))
+    .join("");
+}
+
 function renderMyEvents() {
   const currentUser = getCurrentUser();
-  const joinedContainer = $("#joinedEvents");
-  const createdContainer = $("#createdEvents");
+  const container = qs("#myEventsGrid");
 
   if (!currentUser) {
-    const loginPrompt = emptyStateTemplate("Login required", "Create or login to a demo account to view your events.");
-    joinedContainer.innerHTML = loginPrompt;
-    createdContainer.innerHTML = loginPrompt;
+    container.innerHTML = emptyStateTemplate("Login required", "Login or create a user account to view your registered events.");
     return;
   }
 
-  const events = getEvents();
-  const joinedIds = getJoinedEvents()
-    .filter((item) => item.userId === currentUser.id)
-    .map((item) => item.eventId);
-  const joinedEvents = events.filter((event) => joinedIds.includes(event.id));
-  const createdEvents = events.filter((event) => event.createdBy === currentUser.id);
+  const joinedIds = getRegistrations()
+    .filter((item) => Number(item.user_id) === Number(currentUser.user_id) && item.status === "joined")
+    .map((item) => Number(item.event_id));
+  const events = getEvents().filter((event) => joinedIds.includes(Number(event.event_id)) && event.status !== "Deleted");
 
-  joinedContainer.innerHTML = joinedEvents.length
-    ? joinedEvents.map((event) => eventCardTemplate(event, { compact: true })).join("")
-    : emptyStateTemplate("No joined events yet.", "Browse events and join one to see it here.");
+  container.innerHTML = events.length
+    ? events.map((event) => `
+        <article class="event-card compact-card">
+          <div class="event-body">
+            <div class="event-meta">
+              <span class="category-tag">${event.category}</span>
+              <span>${eventStatus(event)}</span>
+            </div>
+            <h3>${event.title}</h3>
+            <p>${event.description}</p>
+            <dl class="event-facts">
+              <div><dt>Date</dt><dd>${formatDate(event.event_date)}</dd></div>
+              <div><dt>Time</dt><dd>${formatTime(event.event_time)}</dd></div>
+              <div><dt>Location</dt><dd>${event.location}</dd></div>
+            </dl>
+            <button class="secondary-btn" type="button" data-cancel-registration="${event.event_id}">Cancel Registration</button>
+          </div>
+        </article>
+      `).join("")
+    : emptyStateTemplate("No registered events yet.", "Browse events and join one to see it here.");
+}
 
-  createdContainer.innerHTML = createdEvents.length
-    ? createdEvents.map((event) => eventCardTemplate(event, { compact: true })).join("")
-    : emptyStateTemplate("No created events yet.", "Create your first campus anime event.");
+function renderAdminEvents() {
+  const container = qs("#adminEventList");
+  if (!container) return;
+
+  if (!isAdmin()) {
+    container.innerHTML = emptyStateTemplate("Admin only", "Login with the admin demo account to manage events.");
+    return;
+  }
+
+  container.innerHTML = getEvents()
+    .filter((event) => event.status !== "Deleted")
+    .map((event) => {
+      const registeredUsers = activeRegistrations(event.event_id)
+        .map((registration) => findUser(registration.user_id)?.username || "Unknown user");
+      return `
+        <article class="admin-event-row">
+          <div>
+            <strong>${event.title}</strong>
+            <span>${event.category} | ${formatDate(event.event_date)} | ${countParticipants(event.event_id)}/${event.capacity} joined</span>
+            <small>Registered: ${registeredUsers.length ? registeredUsers.join(", ") : "No users yet"}</small>
+          </div>
+          <div class="row-actions">
+            <button class="secondary-btn" type="button" data-edit-event="${event.event_id}">Edit</button>
+            <button class="danger-btn" type="button" data-delete-event="${event.event_id}">Delete</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function likeCount(postId) {
+  return getPostLikes().filter((like) => Number(like.post_id) === Number(postId)).length;
+}
+
+function commentCount(postId) {
+  return getPostComments().filter((comment) => (
+    Number(comment.post_id) === Number(postId) && comment.status === "active"
+  )).length;
+}
+
+function shareCount(postId) {
+  return getPostShares().filter((share) => Number(share.post_id) === Number(postId)).length;
+}
+
+function postCardTemplate(post, options = {}) {
+  const currentUser = getCurrentUser();
+  const author = findUser(post.user_id);
+  const canDelete = currentUser && (Number(currentUser.user_id) === Number(post.user_id) || currentUser.role === "admin");
+  const liked = currentUser && getPostLikes().some((like) => (
+    Number(like.post_id) === Number(post.post_id) && Number(like.user_id) === Number(currentUser.user_id)
+  ));
+  const comments = getPostComments().filter((comment) => (
+    Number(comment.post_id) === Number(post.post_id) && comment.status === "active"
+  ));
+
+  return `
+    <article class="post-card">
+      <div class="post-topline">
+        <button class="text-btn" type="button" data-view-user="${post.user_id}">${author?.username || "Unknown user"}</button>
+        <span>${formatDateTime(post.created_at)}</span>
+      </div>
+      <h3>${post.title}</h3>
+      <p>${post.content}</p>
+      ${post.image_url ? `<img class="post-image" src="${post.image_url}" alt="">` : ""}
+      <div class="post-actions">
+        <button class="secondary-btn ${liked ? "active" : ""}" type="button" data-like-post="${post.post_id}">
+          ${liked ? "Liked" : "Like"} (${likeCount(post.post_id)})
+        </button>
+        <button class="secondary-btn" type="button" data-share-post="${post.post_id}">Share (${shareCount(post.post_id)})</button>
+        ${canDelete ? `<button class="danger-btn" type="button" data-delete-post="${post.post_id}">Delete</button>` : ""}
+      </div>
+      ${options.hideComments ? "" : `
+        <div class="comment-list">
+          ${comments.length ? comments.map((comment) => `
+            <p><strong>${findUser(comment.user_id)?.username || "Unknown"}:</strong> ${comment.comment_text}</p>
+          `).join("") : "<p>No comments yet.</p>"}
+        </div>
+        <form class="inline-form" data-comment-form="${post.post_id}">
+          <input type="text" name="comment_text" placeholder="Write a comment">
+          <button class="dark-btn" type="submit">Comment (${commentCount(post.post_id)})</button>
+        </form>
+      `}
+    </article>
+  `;
+}
+
+function renderPosts() {
+  const posts = getPosts()
+    .filter((post) => post.status === "active")
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  qs("#postFeed").innerHTML = posts.length
+    ? posts.map((post) => postCardTemplate(post)).join("")
+    : emptyStateTemplate("No posts yet.", "Create the first anime community post.");
 }
 
 function renderProfile() {
   const currentUser = getCurrentUser();
-  const profileContent = $("#profileContent");
+  const profileContent = qs("#profileContent");
 
   if (!currentUser) {
     profileContent.innerHTML = `
       <div class="profile-card">
         <p class="eyebrow">Profile</p>
         <h1>No user logged in</h1>
-        <p class="muted">Login or register to view your demo student profile.</p>
-        <button class="primary-btn" type="button" data-view-link="auth">Go to Login/Register</button>
+        <p class="muted">Login or sign up to view your profile, posts, and liked posts.</p>
+        <button class="primary-btn" type="button" data-view-link="auth">Go to Log In / Sign Up</button>
       </div>
     `;
     return;
   }
 
-  const joinedCount = getJoinedEvents().filter((item) => item.userId === currentUser.id).length;
-  const createdCount = getEvents().filter((event) => event.createdBy === currentUser.id).length;
+  const myPosts = getPosts().filter((post) => (
+    Number(post.user_id) === Number(currentUser.user_id) && post.status === "active"
+  ));
+  const likedIds = getPostLikes()
+    .filter((like) => Number(like.user_id) === Number(currentUser.user_id))
+    .map((like) => Number(like.post_id));
+  const likedPosts = getPosts().filter((post) => likedIds.includes(Number(post.post_id)) && post.status === "active");
+  const joinedCount = getRegistrations().filter((item) => (
+    Number(item.user_id) === Number(currentUser.user_id) && item.status === "joined"
+  )).length;
 
   profileContent.innerHTML = `
     <div class="profile-card">
-      <p class="eyebrow">Logged-in student</p>
-      <h1>${currentUser.fullName}</h1>
+      <p class="eyebrow">${currentUser.role === "admin" ? "Admin profile" : "User profile"}</p>
+      <h1>${currentUser.username}</h1>
       <div class="profile-grid">
-        <div>
-          <span>Student ID</span>
-          <strong>${currentUser.studentId}</strong>
-        </div>
-        <div>
-          <span>Email</span>
-          <strong>${currentUser.email}</strong>
-        </div>
-        <div>
-          <span>Joined Events</span>
-          <strong>${joinedCount}</strong>
-        </div>
-        <div>
-          <span>Created Events</span>
-          <strong>${createdCount}</strong>
-        </div>
+        <div><span>Email</span><strong>${currentUser.email}</strong></div>
+        <div><span>Role</span><strong>${currentUser.role}</strong></div>
+        <div><span>Anime Interest</span><strong>${currentUser.anime_interest || "Not set"}</strong></div>
+        <div><span>Joined Events</span><strong>${joinedCount}</strong></div>
+        <div><span>My Posts</span><strong>${myPosts.length}</strong></div>
+        <div><span>Liked Posts</span><strong>${likedPosts.length}</strong></div>
       </div>
       <button class="dark-btn" type="button" id="logoutButton">Logout</button>
     </div>
+    <section class="profile-section">
+      <div class="section-heading compact"><h2>My Posts</h2></div>
+      <div class="post-feed compact-feed">
+        ${myPosts.length ? myPosts.map((post) => postCardTemplate(post, { hideComments: true })).join("") : emptyStateTemplate("No posts created yet.", "Create one from the Posts page.")}
+      </div>
+    </section>
+    <section class="profile-section">
+      <div class="section-heading compact"><h2>Liked Posts</h2></div>
+      <div class="post-feed compact-feed">
+        ${likedPosts.length ? likedPosts.map((post) => postCardTemplate(post, { hideComments: true })).join("") : emptyStateTemplate("No liked posts yet.", "Like posts from the community feed.")}
+      </div>
+    </section>
   `;
 }
 
-function renderAuthState() {
-  const currentUser = getCurrentUser();
-  const authLink = $("[data-auth-link]");
-  authLink.textContent = currentUser ? currentUser.fullName.split(" ")[0] : "Login/Register";
-}
-
 function renderAll() {
+  renderNavigation();
   renderCategoryOptions();
   renderEvents();
   renderMyEvents();
+  renderAdminEvents();
+  renderPosts();
   renderProfile();
-  renderAuthState();
+}
+
+function viewAllowed(viewName) {
+  const currentUser = getCurrentUser();
+  if (viewName === "admin-events") return currentUser?.role === "admin";
+  if (viewName === "home") return currentUser?.role !== "admin";
+  return true;
 }
 
 function switchView(viewName) {
-  state.currentView = viewName;
+  const safeView = viewAllowed(viewName) ? viewName : (isAdmin() ? "events" : "home");
+  state.currentView = safeView;
 
-  $$(".view").forEach((view) => {
-    view.classList.toggle("active", view.dataset.view === viewName);
+  qsa(".view").forEach((view) => {
+    view.classList.toggle("active", view.dataset.view === safeView);
   });
 
-  $$("[data-view-link]").forEach((link) => {
-    link.classList.toggle("active", link.dataset.viewLink === viewName);
+  qsa("[data-view-link]").forEach((link) => {
+    link.classList.toggle("active", link.dataset.viewLink === safeView);
   });
 
-  $("#mainNav").classList.remove("open");
-  $(".nav-toggle").setAttribute("aria-expanded", "false");
+  qs("#mainNav").classList.remove("open");
+  qs(".nav-toggle").setAttribute("aria-expanded", "false");
   clearMessages();
-  renderMyEvents();
-  renderProfile();
+  window.location.hash = safeView;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function openEventModal(eventId) {
-  const event = getEvents().find((item) => item.id === eventId);
+  const event = getEvents().find((item) => Number(item.event_id) === Number(eventId));
   if (!event) return;
 
-  state.activeEventId = eventId;
+  state.activeEventId = Number(eventId);
   const currentUser = getCurrentUser();
-  const alreadyJoined = currentUser && getJoinedEvents().some((item) => (
-    item.userId === currentUser.id && item.eventId === eventId
+  const alreadyJoined = currentUser && activeRegistrations(event.event_id).some((item) => (
+    Number(item.user_id) === Number(currentUser.user_id)
   ));
+  const status = eventStatus(event);
+  const registeredUsers = activeRegistrations(event.event_id)
+    .map((registration) => findUser(registration.user_id))
+    .filter(Boolean);
+  const canJoin = currentUser?.role === "user" && !alreadyJoined && status === "Upcoming";
 
-  $("#modalContent").innerHTML = `
+  qs("#modalContent").innerHTML = `
     <span class="category-tag">${event.category}</span>
     <h2 id="modalTitle">${event.title}</h2>
     <p class="modal-description">${event.description}</p>
     <dl class="modal-facts">
-      <div><dt>Date</dt><dd>${formatDate(event.date)}</dd></div>
-      <div><dt>Time</dt><dd>${formatTime(event.time)}</dd></div>
+      <div><dt>Date</dt><dd>${formatDate(event.event_date)}</dd></div>
+      <div><dt>Time</dt><dd>${formatTime(event.event_time)}</dd></div>
       <div><dt>Location</dt><dd>${event.location}</dd></div>
-      <div><dt>Participants</dt><dd>${countParticipants(event.id)} joined</dd></div>
+      <div><dt>Status</dt><dd>${status}</dd></div>
+      <div><dt>Participants</dt><dd>${countParticipants(event.event_id)}/${event.capacity} joined</dd></div>
+      <div><dt>Created By</dt><dd>${findUser(event.created_by)?.username || "Unknown admin"}</dd></div>
     </dl>
-    <button class="primary-btn full-width" type="button" id="joinEventButton">
-      ${alreadyJoined ? "Already Joined" : "Join Event"}
+    ${isAdmin() ? `
+      <div class="registered-panel">
+        <strong>Registered Users</strong>
+        ${registeredUsers.length ? registeredUsers.map((user) => `<p>${user.username} | ${user.email}</p>`).join("") : "<p>No users registered yet.</p>"}
+      </div>
+    ` : ""}
+    <button class="primary-btn full-width" type="button" id="joinEventButton" ${canJoin ? "" : "disabled"}>
+      ${alreadyJoined ? "Already Joined" : status === "Upcoming" ? "Join Event" : status}
     </button>
   `;
 
-  const joinButton = $("#joinEventButton");
-  joinButton.disabled = Boolean(alreadyJoined);
-
-  $("#eventModal").classList.add("open");
-  $("#eventModal").setAttribute("aria-hidden", "false");
+  qs("#eventModal").classList.add("open");
+  qs("#eventModal").setAttribute("aria-hidden", "false");
 }
 
 function closeEventModal() {
-  $("#eventModal").classList.remove("open");
-  $("#eventModal").setAttribute("aria-hidden", "true");
+  qs("#eventModal").classList.remove("open");
+  qs("#eventModal").setAttribute("aria-hidden", "true");
   state.activeEventId = null;
+}
+
+function openUserModal(userId) {
+  const user = findUser(userId);
+  if (!user) return;
+
+  const posts = getPosts().filter((post) => Number(post.user_id) === Number(user.user_id) && post.status === "active");
+  qs("#userModalContent").innerHTML = `
+    <p class="eyebrow">${user.role} profile</p>
+    <h2 id="userModalTitle">${user.username}</h2>
+    <dl class="modal-facts">
+      <div><dt>Email</dt><dd>${user.email}</dd></div>
+      <div><dt>Anime Interest</dt><dd>${user.anime_interest || "Not set"}</dd></div>
+      <div><dt>Posts</dt><dd>${posts.length}</dd></div>
+    </dl>
+    <div class="post-feed compact-feed">
+      ${posts.length ? posts.map((post) => postCardTemplate(post, { hideComments: true })).join("") : emptyStateTemplate("No posts yet.", "This user has not posted anything.")}
+    </div>
+  `;
+  qs("#userModal").classList.add("open");
+  qs("#userModal").setAttribute("aria-hidden", "false");
+}
+
+function closeUserModal() {
+  qs("#userModal").classList.remove("open");
+  qs("#userModal").setAttribute("aria-hidden", "true");
 }
 
 function handleRegister(event) {
@@ -345,15 +584,17 @@ function handleRegister(event) {
   const form = event.currentTarget;
   const formData = new FormData(form);
   const user = {
-    id: `user-${Date.now()}`,
-    fullName: formData.get("fullName").trim(),
-    studentId: formData.get("studentId").trim(),
+    user_id: nextId(getUsers(), "user_id"),
+    username: formData.get("username").trim(),
     email: formData.get("email").trim().toLowerCase(),
-    password: formData.get("password")
+    password: formData.get("password"),
+    role: "user",
+    anime_interest: formData.get("anime_interest").trim(),
+    created_at: new Date().toISOString()
   };
 
-  if (!user.fullName || !user.studentId || !user.email || !user.password) {
-    setMessage("#registerMessage", "Please fill in all registration fields.", "error");
+  if (!user.username || !user.email || !user.password) {
+    setMessage("#registerMessage", "Please fill in username, email, and password.", "error");
     return;
   }
 
@@ -363,12 +604,10 @@ function handleRegister(event) {
     return;
   }
 
-  users.push(user);
-  writeStorage(STORAGE_KEYS.users, users);
+  writeStorage(STORAGE_KEYS.users, [...users, user]);
   setCurrentUser(user);
   form.reset();
-  setMessage("#registerMessage", "Account created. You are now logged in.", "success");
-  showToast("Welcome to Taylor's Anime Event Hub.");
+  showToast("User account created.");
   renderAll();
   switchView("profile");
 }
@@ -393,54 +632,88 @@ function handleLogin(event) {
 
   setCurrentUser(user);
   form.reset();
-  setMessage("#loginMessage", "Login successful.", "success");
-  showToast("Login successful.");
+  showToast(`Logged in as ${user.role}.`);
   renderAll();
-  switchView("profile");
+  switchView(user.role === "admin" ? "admin-events" : "home");
 }
 
-function handleCreateEvent(event) {
+function handleEventForm(event) {
   event.preventDefault();
-  const currentUser = getCurrentUser();
-  if (!currentUser) {
-    setMessage("#createMessage", "Please login before creating an event.", "error");
-    switchView("auth");
+  if (!isAdmin()) {
+    setMessage("#eventMessage", "Only admin can save events.", "error");
     return;
   }
 
   const form = event.currentTarget;
   const formData = new FormData(form);
-  const title = formData.get("title").trim();
-  const category = formData.get("category");
-  const date = formData.get("date");
-  const time = formData.get("time");
-  const location = formData.get("location").trim();
-  const description = formData.get("description").trim();
+  const eventId = formData.get("event_id");
+  const eventRecord = {
+    event_id: eventId ? Number(eventId) : nextId(getEvents(), "event_id"),
+    title: formData.get("title").trim(),
+    category: formData.get("category"),
+    description: formData.get("description").trim(),
+    event_date: formData.get("event_date"),
+    event_time: formData.get("event_time"),
+    location: formData.get("location").trim(),
+    capacity: Number(formData.get("capacity")),
+    image_url: formData.get("image_url").trim(),
+    status: formData.get("status"),
+    created_by: getCurrentUser().user_id,
+    created_at: eventId
+      ? getEvents().find((item) => Number(item.event_id) === Number(eventId))?.created_at || new Date().toISOString()
+      : new Date().toISOString()
+  };
 
-  if (!title || !category || !date || !time || !location || !description) {
-    setMessage("#createMessage", "Please fill in all event fields.", "error");
+  if (!eventRecord.title || !eventRecord.category || !eventRecord.description || !eventRecord.event_date || !eventRecord.event_time || !eventRecord.location || !eventRecord.capacity) {
+    setMessage("#eventMessage", "Please fill in all required event fields.", "error");
     return;
   }
 
-  const eventRecord = {
-    id: `evt-${Date.now()}`,
-    title,
-    category,
-    date,
-    time,
-    location,
-    shortDescription: description.length > 110 ? `${description.slice(0, 110)}...` : description,
-    description,
-    baseParticipants: 0,
-    createdBy: currentUser.id
-  };
+  const events = getEvents();
+  const nextEvents = eventId
+    ? events.map((item) => Number(item.event_id) === Number(eventId) ? eventRecord : item)
+    : [eventRecord, ...events];
 
-  writeStorage(STORAGE_KEYS.events, [eventRecord, ...getEvents()]);
-  form.reset();
-  setMessage("#createMessage", "Event created successfully.", "success");
-  showToast("Event created and added to the hub.");
+  writeStorage(STORAGE_KEYS.events, nextEvents);
+  resetEventForm();
+  showToast(eventId ? "Event updated." : "Event created.");
   renderAll();
-  switchView("events");
+}
+
+function resetEventForm() {
+  const form = qs("#eventForm");
+  form.reset();
+  form.elements.namedItem("event_id").value = "";
+  qs("#eventFormMode").textContent = "Create Event";
+  setMessage("#eventMessage", "");
+}
+
+function editEvent(eventId) {
+  const event = getEvents().find((item) => Number(item.event_id) === Number(eventId));
+  if (!event) return;
+
+  const form = qs("#eventForm");
+  form.elements.namedItem("event_id").value = event.event_id;
+  form.elements.namedItem("title").value = event.title;
+  form.elements.namedItem("category").value = event.category;
+  form.elements.namedItem("event_date").value = event.event_date;
+  form.elements.namedItem("event_time").value = event.event_time;
+  form.elements.namedItem("capacity").value = event.capacity;
+  form.elements.namedItem("status").value = event.status;
+  form.elements.namedItem("location").value = event.location;
+  form.elements.namedItem("image_url").value = event.image_url;
+  form.elements.namedItem("description").value = event.description;
+  qs("#eventFormMode").textContent = "Edit Event";
+  switchView("admin-events");
+}
+
+function deleteEvent(eventId) {
+  const events = getEvents().map((event) => (
+    Number(event.event_id) === Number(eventId) ? { ...event, status: "Deleted" } : event
+  ));
+  writeStorage(STORAGE_KEYS.events, events);
+  showToast("Event deleted.");
+  renderAll();
 }
 
 function handleJoinEvent() {
@@ -452,26 +725,195 @@ function handleJoinEvent() {
     return;
   }
 
-  const joinedEvents = getJoinedEvents();
-  const alreadyJoined = joinedEvents.some((item) => (
-    item.userId === currentUser.id && item.eventId === state.activeEventId
-  ));
-
-  if (alreadyJoined) {
-    showToast("You already joined this event.");
+  if (currentUser.role !== "user") {
+    showToast("Only normal users can register events.");
     return;
   }
 
-  joinedEvents.push({
-    userId: currentUser.id,
-    eventId: state.activeEventId,
-    joinedAt: new Date().toISOString()
-  });
+  const event = getEvents().find((item) => Number(item.event_id) === Number(state.activeEventId));
+  if (!event || eventStatus(event) !== "Upcoming") {
+    showToast("This event is not open for registration.");
+    return;
+  }
 
-  writeStorage(STORAGE_KEYS.joinedEvents, joinedEvents);
+  const registrations = getRegistrations();
+  const existing = registrations.find((item) => (
+    Number(item.user_id) === Number(currentUser.user_id) && Number(item.event_id) === Number(state.activeEventId)
+  ));
+
+  const nextRegistrations = existing
+    ? registrations.map((item) => item === existing ? { ...item, status: "joined", registration_date: new Date().toISOString() } : item)
+    : [
+        ...registrations,
+        {
+          registration_id: nextId(registrations, "registration_id"),
+          user_id: currentUser.user_id,
+          event_id: state.activeEventId,
+          registration_date: new Date().toISOString(),
+          status: "joined"
+        }
+      ];
+
+  writeStorage(STORAGE_KEYS.registrations, nextRegistrations);
   showToast("Event joined successfully.");
   closeEventModal();
   renderAll();
+}
+
+function cancelRegistration(eventId) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return;
+
+  const registrations = getRegistrations().map((item) => (
+    Number(item.user_id) === Number(currentUser.user_id) && Number(item.event_id) === Number(eventId)
+      ? { ...item, status: "cancelled" }
+      : item
+  ));
+
+  writeStorage(STORAGE_KEYS.registrations, registrations);
+  showToast("Registration cancelled.");
+  renderAll();
+}
+
+function handlePostForm(event) {
+  event.preventDefault();
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    setMessage("#postMessage", "Please login before creating a post.", "error");
+    switchView("auth");
+    return;
+  }
+
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const title = formData.get("title").trim();
+  const content = formData.get("content").trim();
+  const imageUrl = formData.get("image_url").trim();
+
+  if (!title || !content) {
+    setMessage("#postMessage", "Please fill in post title and content.", "error");
+    return;
+  }
+
+  const posts = getPosts();
+  writeStorage(STORAGE_KEYS.posts, [
+    {
+      post_id: nextId(posts, "post_id"),
+      user_id: currentUser.user_id,
+      title,
+      content,
+      image_url: imageUrl,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      status: "active"
+    },
+    ...posts
+  ]);
+
+  form.reset();
+  showToast("Post created.");
+  renderAll();
+}
+
+function toggleLike(postId) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    showToast("Please login before liking posts.");
+    switchView("auth");
+    return;
+  }
+
+  const likes = getPostLikes();
+  const existing = likes.find((like) => (
+    Number(like.post_id) === Number(postId) && Number(like.user_id) === Number(currentUser.user_id)
+  ));
+  const nextLikes = existing
+    ? likes.filter((like) => like !== existing)
+    : [...likes, { like_id: nextId(likes, "like_id"), post_id: Number(postId), user_id: currentUser.user_id, created_at: new Date().toISOString() }];
+
+  writeStorage(STORAGE_KEYS.postLikes, nextLikes);
+  renderAll();
+}
+
+function sharePost(postId) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    showToast("Please login before sharing posts.");
+    switchView("auth");
+    return;
+  }
+
+  const shares = getPostShares();
+  writeStorage(STORAGE_KEYS.postShares, [
+    ...shares,
+    {
+      share_id: nextId(shares, "share_id"),
+      post_id: Number(postId),
+      user_id: currentUser.user_id,
+      share_message: "",
+      created_at: new Date().toISOString()
+    }
+  ]);
+  showToast("Post shared in demo data.");
+  renderAll();
+}
+
+function deletePost(postId) {
+  const currentUser = getCurrentUser();
+  const post = getPosts().find((item) => Number(item.post_id) === Number(postId));
+  if (!currentUser || !post) return;
+
+  const canDelete = currentUser.role === "admin" || Number(currentUser.user_id) === Number(post.user_id);
+  if (!canDelete) {
+    showToast("You can only delete your own post.");
+    return;
+  }
+
+  writeStorage(STORAGE_KEYS.posts, getPosts().map((item) => (
+    Number(item.post_id) === Number(postId) ? { ...item, status: "deleted", updated_at: new Date().toISOString() } : item
+  )));
+  showToast("Post deleted.");
+  renderAll();
+}
+
+function handleCommentForm(event, form, postId) {
+  event.preventDefault();
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    showToast("Please login before commenting.");
+    switchView("auth");
+    return;
+  }
+
+  const input = form.elements.namedItem("comment_text");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const comments = getPostComments();
+  writeStorage(STORAGE_KEYS.postComments, [
+    ...comments,
+    {
+      comment_id: nextId(comments, "comment_id"),
+      post_id: Number(postId),
+      user_id: currentUser.user_id,
+      comment_text: text,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      status: "active"
+    }
+  ]);
+  input.value = "";
+  renderAll();
+}
+
+function fillLogin(role) {
+  const form = qs("#loginForm");
+  const account = role === "admin"
+    ? { email: "admin@example.com", password: "admin123" }
+    : { email: "student@example.com", password: "student123" };
+
+  form.elements.namedItem("email").value = account.email;
+  form.elements.namedItem("password").value = account.password;
 }
 
 function bindEvents() {
@@ -497,6 +939,54 @@ function bindEvents() {
       return;
     }
 
+    const editButton = event.target.closest("[data-edit-event]");
+    if (editButton) {
+      editEvent(editButton.dataset.editEvent);
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-event]");
+    if (deleteButton) {
+      deleteEvent(deleteButton.dataset.deleteEvent);
+      return;
+    }
+
+    const cancelButton = event.target.closest("[data-cancel-registration]");
+    if (cancelButton) {
+      cancelRegistration(cancelButton.dataset.cancelRegistration);
+      return;
+    }
+
+    const likeButton = event.target.closest("[data-like-post]");
+    if (likeButton) {
+      toggleLike(likeButton.dataset.likePost);
+      return;
+    }
+
+    const shareButton = event.target.closest("[data-share-post]");
+    if (shareButton) {
+      sharePost(shareButton.dataset.sharePost);
+      return;
+    }
+
+    const deletePostButton = event.target.closest("[data-delete-post]");
+    if (deletePostButton) {
+      deletePost(deletePostButton.dataset.deletePost);
+      return;
+    }
+
+    const viewUserButton = event.target.closest("[data-view-user]");
+    if (viewUserButton) {
+      openUserModal(viewUserButton.dataset.viewUser);
+      return;
+    }
+
+    const fillLoginButton = event.target.closest("[data-fill-login]");
+    if (fillLoginButton) {
+      fillLogin(fillLoginButton.dataset.fillLogin);
+      return;
+    }
+
     if (event.target.id === "logoutButton") {
       setCurrentUser(null);
       showToast("Logged out.");
@@ -510,23 +1000,39 @@ function bindEvents() {
     }
   });
 
-  $(".nav-toggle").addEventListener("click", () => {
-    const nav = $("#mainNav");
-    const isOpen = nav.classList.toggle("open");
-    $(".nav-toggle").setAttribute("aria-expanded", String(isOpen));
+  document.addEventListener("submit", (event) => {
+    const commentForm = event.target.closest("[data-comment-form]");
+    if (commentForm) {
+      handleCommentForm(event, commentForm, commentForm.dataset.commentForm);
+    }
   });
 
-  $(".modal-close").addEventListener("click", closeEventModal);
-  $("#eventModal").addEventListener("click", (event) => {
+  qs(".nav-toggle").addEventListener("click", () => {
+    const nav = qs("#mainNav");
+    const isOpen = nav.classList.toggle("open");
+    qs(".nav-toggle").setAttribute("aria-expanded", String(isOpen));
+  });
+
+  qs(".modal-close").addEventListener("click", closeEventModal);
+  qs("[data-close-user-modal]").addEventListener("click", closeUserModal);
+  qs("#eventModal").addEventListener("click", (event) => {
     if (event.target.id === "eventModal") closeEventModal();
   });
+  qs("#userModal").addEventListener("click", (event) => {
+    if (event.target.id === "userModal") closeUserModal();
+  });
 
-  $("#registerForm").addEventListener("submit", handleRegister);
-  $("#loginForm").addEventListener("submit", handleLogin);
-  $("#createEventForm").addEventListener("submit", handleCreateEvent);
+  qs("#registerForm").addEventListener("submit", handleRegister);
+  qs("#loginForm").addEventListener("submit", handleLogin);
+  qs("#eventForm").addEventListener("submit", handleEventForm);
+  qs("#postForm").addEventListener("submit", handlePostForm);
+  qs("#resetEventForm").addEventListener("click", resetEventForm);
 
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeEventModal();
+    if (event.key === "Escape") {
+      closeEventModal();
+      closeUserModal();
+    }
   });
 }
 
@@ -535,8 +1041,8 @@ function bootApp() {
   bindEvents();
   renderAll();
 
-  const initialView = window.location.hash.replace("#", "") || "home";
-  const validView = $(`[data-view="${initialView}"]`) ? initialView : "home";
+  const initialView = window.location.hash.replace("#", "") || (isAdmin() ? "events" : "home");
+  const validView = qs(`[data-view="${initialView}"]`) ? initialView : "home";
   switchView(validView);
 }
 
